@@ -168,7 +168,7 @@ static StableIValue from_ivalue(
   }
 }
 
-static c10::IValue create_ivalue_scalar_and_stable_ivalue(c10::ScalarType scalar_type, const StableIValue payload,
+static c10::IValue create_ivalue_from_scalartype_and_stable_ivalue(c10::ScalarType scalar_type, const StableIValue payload,
 uint64_t extension_build_version) {
   // Interpret the scalar using its scalar type, calling into the appropriate _to specialisation.
   switch (scalar_type) {
@@ -292,8 +292,6 @@ static c10::IValue to_ivalue(
     case c10::TypeKind::NumberType: {
       // This holds a 'Scalar' from the stable side, it is a list with two elements that we need to convert to the
       // correct ivalue.
-      std::cout << "NumberType ENCOUNTERED" << std::endl;
-
       auto list_handle = torch::stable::detail::_to<StableListHandle>(
           stable_ivalue, extension_build_version);
       std::vector<StableIValue>* stableivalue_list =
@@ -309,9 +307,10 @@ static c10::IValue to_ivalue(
       const auto scalar_type =  torch::stable::detail::_to<c10::ScalarType>(
           stableivalue_list->front(), extension_build_version);
       const auto value = stableivalue_list->back();
+      // Delete the list, it was an owning pointer.
       TORCH_ERROR_CODE_CHECK(torch_delete_list(list_handle));
-      std::cout << "scalar_type: "<< scalar_type  << std::endl;
-      return create_ivalue_scalar_and_stable_ivalue(scalar_type,value, extension_build_version);
+      // And finally, combine the scalar type and the value to create the ivalue.
+      return create_ivalue_from_scalartype_and_stable_ivalue(scalar_type,value, extension_build_version);
 
     }
     default: {

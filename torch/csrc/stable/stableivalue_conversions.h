@@ -440,7 +440,8 @@ struct FromImpl<std::string> {
 // =============================================================================
 #if TORCH_FEATURE_VERSION >= TORCH_VERSION_2_12_0
 // Specialisation of Scalar, converting it into a list of two elements. The first holds the ScalarType converted to the
-// StableIValue, the second the actual value, bitwise copy.
+// StableIValue, the second the actual value, bitwise copy. This performs a heap allocation and that memory will be
+// freed by the to_ivalue function.
 template <>
 struct FromImpl<Scalar> {
   static StableIValue call(
