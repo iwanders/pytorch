@@ -4,6 +4,7 @@
 #include <torch/csrc/stable/c/shim.h>
 #include <torch/csrc/stable/device_struct.h>
 #include <torch/csrc/stable/tensor_struct.h>
+#include <torch/csrc/stable/scalar_struct.h>
 #include <torch/headeronly/core/DeviceType.h>
 #include <torch/headeronly/core/Layout.h>
 #include <torch/headeronly/core/MemoryFormat.h>
@@ -14,6 +15,7 @@
 #include <torch/headeronly/util/shim_utils.h>
 
 #include <optional>
+
 
 HIDDEN_NAMESPACE_BEGIN(torch, stable, detail)
 
@@ -431,6 +433,40 @@ struct FromImpl<std::string> {
 };
 
 #endif // TORCH_FEATURE_VERSION >= TORCH_VERSION_2_10_0
+
+
+// =============================================================================
+// FROM CONVERSIONS requiring TORCH_FEATURE_VERSION >= TORCH_VERSION_2_12_0
+// =============================================================================
+#if TORCH_FEATURE_VERSION >= TORCH_VERSION_2_12_0
+// Specialisation of Scalar, converting it into a list of two elements. The first holds the ScalarType converted to the
+// StableIValue, the second the actual value, bitwise copy.
+template <>
+struct FromImpl<Scalar> {
+  static StableIValue call(
+      const Scalar& val,
+      [[maybe_unused]] uint64_t extension_build_version,
+      [[maybe_unused]] bool is_internal) {
+        StableListHandle new_list_handle;
+      try {
+        TORCH_ERROR_CODE_CHECK(
+            torch_new_list_reserve_size(2, &new_list_handle));
+          TORCH_ERROR_CODE_CHECK(torch_list_push_back(
+              new_list_handle, torch::stable::detail::from(val.type())));
+          TORCH_ERROR_CODE_CHECK(torch_list_push_back(
+              new_list_handle, torch::stable::detail::from(val.value())));
+        return torch::stable::detail::from(new_list_handle);
+      } catch (const std::runtime_error&) {
+        if (new_list_handle != nullptr) {
+          // clean up memory if an error was thrown
+          TORCH_ERROR_CODE_CHECK(torch_delete_list(new_list_handle));
+        }
+        throw;
+      }
+  }
+};
+
+#endif // TORCH_FEATURE_VERSION >= TORCH_VERSION_2_12_0
 
 // =============================================================================
 // TO CONVERSIONS (StableIValue -> T)

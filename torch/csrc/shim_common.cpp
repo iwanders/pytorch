@@ -168,6 +168,21 @@ static StableIValue from_ivalue(
   }
 }
 
+static c10::IValue create_ivalue_scalar_and_stable_ivalue(c10::ScalarType scalar_type, const StableIValue payload,
+uint64_t extension_build_version) {
+  // Interpret the scalar using its scalar type, calling into the appropriate _to specialisation.
+  switch (scalar_type) {
+    #define DEFINE_CASE(_, name) \
+      case c10::ScalarType::name:     \
+        return c10::IValue(torch::stable::detail::_to<c10::impl::ScalarTypeToCPPTypeT<c10::ScalarType::name>>(payload, extension_build_version));
+
+      AT_FORALL_SCALAR_TYPES(DEFINE_CASE)
+
+    default:
+      TORCH_CHECK(false, "Not yet support conversion of this Scalar payload: ", toString(scalar_type));
+  }
+}
+
 static c10::IValue to_ivalue(
     const c10::TypePtr& type,
     const StableIValue stable_ivalue,
@@ -273,6 +288,31 @@ static c10::IValue to_ivalue(
       // Treat SymInt as Int for StableIValue <-> IValue conversion
       return to_ivalue(
           c10::IntType::get(), stable_ivalue, extension_build_version);
+    }
+    case c10::TypeKind::NumberType: {
+      // This holds a 'Scalar' from the stable side, it is a list with two elements that we need to convert to the
+      // correct ivalue.
+      std::cout << "NumberType ENCOUNTERED" << std::endl;
+
+      auto list_handle = torch::stable::detail::_to<StableListHandle>(
+          stable_ivalue, extension_build_version);
+      std::vector<StableIValue>* stableivalue_list =
+          list_handle_to_list_pointer(list_handle);
+      TORCH_CHECK(
+        stableivalue_list != nullptr,
+          "Scalar conversion from StableIValue failed, got nullptr");
+      TORCH_CHECK(
+        stableivalue_list->size() == 2,
+          "Scalar conversion from StableIValue failed, expected 2 elements, got:",
+          stableivalue_list->size());
+      // Convert from the StableIValue back to the c10::ScalarType using the proper conversion.
+      const auto scalar_type =  torch::stable::detail::_to<c10::ScalarType>(
+          stableivalue_list->front(), extension_build_version);
+      const auto value = stableivalue_list->back();
+      TORCH_ERROR_CODE_CHECK(torch_delete_list(list_handle));
+      std::cout << "scalar_type: "<< scalar_type  << std::endl;
+      return create_ivalue_scalar_and_stable_ivalue(scalar_type,value, extension_build_version);
+
     }
     default: {
       TORCH_CHECK(
