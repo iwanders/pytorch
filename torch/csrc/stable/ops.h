@@ -1059,33 +1059,6 @@ inline torch::stable::Tensor subtract(
   return torch::stable::Tensor(ret0);
 }
 
-/// Stable version of the add.Tensor op.
-///
-/// Adds the other tensor from self, with an optional scaling factor alpha.
-/// Computes: self + alpha * other.
-///
-/// Minimum compatible version: PyTorch 2.12.
-///
-/// @note The alpha parameter is typed as double
-///       API uses double for the Scalar parameter.
-///
-/// @param self The input tensor.
-/// @param other The tensor to add.
-/// @param alpha The scaling factor for other. Defaults to 1.0.
-/// @return The result of self + alpha * other.
-inline torch::stable::Tensor add(
-    const torch::stable::Tensor& self,
-    const torch::stable::Tensor& other,
-    double alpha = 1.0) {
-    const auto num_args = 3;
-    std::array<StableIValue, num_args> stack{
-        torch::stable::detail::from(self),
-        torch::stable::detail::from(other),
-        torch::stable::detail::from(Scalar(alpha))};
-    TORCH_ERROR_CODE_CHECK(torch_call_dispatcher(
-        "aten::add", "Tensor", stack.data(), TORCH_ABI_VERSION));
-    return torch::stable::detail::to<torch::stable::Tensor>(stack[0]);
-}
 
 /// Stable version of the full.default op.
 ///
@@ -1160,4 +1133,35 @@ inline torch::stable::Tensor full(
 
 #endif // TORCH_FEATURE_VERSION >= TORCH_VERSION_2_10_0
 
+
+#if TORCH_FEATURE_VERSION >= TORCH_VERSION_2_12_0
+/// Stable version of the add.Tensor op.
+///
+/// Adds the other tensor from self, with an optional scaling factor alpha.
+/// Computes: self + alpha * other.
+///
+/// Minimum compatible version: PyTorch 2.12.
+///
+/// @note The alpha parameter is typed as double
+///       API uses double for the Scalar parameter.
+///
+/// @param self The input tensor.
+/// @param other The tensor to add.
+/// @param alpha The scaling factor for other. Defaults to 1.0.
+/// @return The result of self + alpha * other.
+inline torch::stable::Tensor add(
+    const torch::stable::Tensor& self,
+    const torch::stable::Tensor& other,
+    double alpha = 1.0) {
+    const auto num_args = 3;
+    std::array<StableIValue, num_args> stack{
+        torch::stable::detail::from(self),
+        torch::stable::detail::from(other),
+        torch::stable::detail::from(Scalar(alpha))};
+    TORCH_ERROR_CODE_CHECK(torch_call_dispatcher(
+        "aten::add", "Tensor", stack.data(), TORCH_ABI_VERSION));
+    return torch::stable::detail::to<torch::stable::Tensor>(stack[0]);
+}
+
+#endif // TORCH_FEATURE_VERSION >= TORCH_VERSION_2_12_0
 HIDDEN_NAMESPACE_END(torch, stable)

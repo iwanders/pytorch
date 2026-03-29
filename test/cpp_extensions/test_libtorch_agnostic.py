@@ -18,12 +18,12 @@ from torch.testing._internal.common_device_type import (
 )
 from torch.testing._internal.common_dtype import all_types_and
 from torch.testing._internal.common_utils import (
+    TestCase,
     install_cpp_extension,
     parametrize,
     run_tests,
     skipIfTorchDynamo,
     skipIfWindows,
-    TestCase,
     xfailIfTorchDynamo,
 )
 
@@ -1925,6 +1925,35 @@ except RuntimeError as e:
         t_sparse_csr = torch.sparse_csr_tensor(crow_indices, col_indices, csr_values)
         self.assertTrue(libtorch_agnostic.ops.my_layout(t_sparse_csr, torch.sparse_csr))
         self.assertFalse(libtorch_agnostic.ops.my_layout(t_sparse_csr, torch.strided))
+
+    @skipIfTorchVersionLessThan(2, 12)
+    def test_my_add(self, device):
+        """Test subtract.Tensor op."""
+        import libtorch_agn_2_12 as libtorch_agnostic
+
+        a = torch.randn(3, 4, device=device)
+        b = torch.randn(3, 4, device=device)
+
+        # Test basic subtraction (alpha=1.0)
+        result = libtorch_agnostic.ops.my_add(a, b)
+        expected = torch.add(a, b)
+        self.assertEqual(result, expected)
+
+        # Test subtraction with alpha=2.0
+        result_alpha = libtorch_agnostic.ops.my_add(a, b, alpha=2.0)
+        expected_alpha = torch.add(a, b, alpha=2.0)
+        self.assertEqual(result_alpha, expected_alpha)
+
+        # Test subtraction with alpha=0.5
+        result_half = libtorch_agnostic.ops.my_add(a, b, alpha=0.5)
+        expected_half = torch.add(a, b, alpha=0.5)
+        self.assertEqual(result_half, expected_half)
+
+        # Test subtraction with broadcasting
+        c = torch.randn(4, device=device)
+        result_broadcast = libtorch_agnostic.ops.my_add(a, c)
+        expected_broadcast = torch.add(a, c)
+        self.assertEqual(result_broadcast, expected_broadcast)
 
 
 instantiate_device_type_tests(TestLibtorchAgnostic, globals(), except_for=None)
