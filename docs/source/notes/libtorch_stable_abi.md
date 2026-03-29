@@ -144,6 +144,8 @@ When interacting with the dispatcher via the stable APIs (``STABLE_TORCH_LIBRARY
 2. StableIValue stack Conventions
 3. Stable APIs that interact with the dispatcher
 
+Some types, like optional, lists pass an owning pointer to the dispatcher, the dispatch call frees this memory accordingly.
+
 ### StableIValue Conversions
 
 We provide utilities for users to convert objects to and from StableIValues with the synonymous
@@ -174,7 +176,7 @@ You can always work with StableIValue abstractions in your custom kernel for typ
 | torch::stable::Device | raw bitwise copy of index and type into leading bytes of uint64_t | c10::Device | Device |
 | ? | ? | c10::Stream | Stream |
 | ? | ? | c10::complex<double> | complex |
-| ? | ? | at::Scalar | Scalar |
+| torch::stable::Scalar | list of two StableIValues, first entry holds the type as torch::headeronly::ScalarType, second the value represented as StableIValue | at::Scalar | Scalar |
 | std::string/std::string_view | raw bitwise copy of underlying StringHandle into leading bytes of uint64_t | std::string/const char*/ivalue::ConstantString | str |
 | ? | ? | at::Storage | Storage |
 | ? | ? | at::Generator | Generator |
