@@ -1,6 +1,7 @@
 #include <c10/core/Device.h>
 #include <c10/core/DispatchKey.h>
 #include <c10/util/Exception.h>
+#include <inductor/aoti_torch/c/macros.h>
 #include <torch/csrc/inductor/aoti_runtime/utils.h>
 #include <torch/csrc/inductor/aoti_torch/c/shim.h>
 #include <torch/csrc/inductor/aoti_torch/tensor_converter.h>
@@ -168,18 +169,27 @@ static StableIValue from_ivalue(
   }
 }
 
-static c10::IValue create_ivalue_from_scalartype_and_stable_ivalue(c10::ScalarType scalar_type, const StableIValue payload,
-uint64_t extension_build_version) {
-  // Interpret the scalar using its scalar type, calling into the appropriate _to specialisation.
+static c10::IValue create_ivalue_from_scalartype_and_stable_ivalue(
+    c10::ScalarType scalar_type,
+    const StableIValue payload,
+    uint64_t extension_build_version) {
+  // Interpret the scalar using its scalar type, calling into the appropriate
+  // _to specialisation.
   switch (scalar_type) {
-    #define DEFINE_CASE(_, name) \
-      case c10::ScalarType::name:     \
-        return c10::IValue(torch::stable::detail::_to<c10::impl::ScalarTypeToCPPTypeT<c10::ScalarType::name>>(payload, extension_build_version));
+#define DEFINE_CASE(_, name)                                         \
+  case c10::ScalarType::name:                                        \
+    return c10::IValue(                                              \
+        torch::stable::detail::_to<                                  \
+            c10::impl::ScalarTypeToCPPTypeT<c10::ScalarType::name>>( \
+            payload, extension_build_version));
 
-      AT_FORALL_SCALAR_TYPES(DEFINE_CASE)
+    AT_FORALL_SCALAR_TYPES(DEFINE_CASE)
 
     default:
-      TORCH_CHECK(false, "Not yet support conversion of this Scalar payload: ", toString(scalar_type));
+      TORCH_CHECK(
+          false,
+          "Not yet support conversion of this Scalar payload: ",
+          toString(scalar_type));
   }
 }
 
@@ -290,28 +300,30 @@ static c10::IValue to_ivalue(
           c10::IntType::get(), stable_ivalue, extension_build_version);
     }
     case c10::TypeKind::NumberType: {
-      // This holds a 'Scalar' from the stable side, it is a list with two elements that we need to convert to the
-      // correct ivalue.
+      // This holds a 'Scalar' from the stable side, it is a list with two
+      // elements that we need to convert to the correct ivalue.
       auto list_handle = torch::stable::detail::_to<StableListHandle>(
           stable_ivalue, extension_build_version);
       std::vector<StableIValue>* stableivalue_list =
           list_handle_to_list_pointer(list_handle);
       TORCH_CHECK(
-        stableivalue_list != nullptr,
+          stableivalue_list != nullptr,
           "Scalar conversion from StableIValue failed, got nullptr");
       TORCH_CHECK(
-        stableivalue_list->size() == 2,
+          stableivalue_list->size() == 2,
           "Scalar conversion from StableIValue failed, expected 2 elements, got:",
           stableivalue_list->size());
-      // Convert from the StableIValue back to the c10::ScalarType using the proper conversion.
-      const auto scalar_type =  torch::stable::detail::_to<c10::ScalarType>(
+      // Convert from the StableIValue back to the c10::ScalarType using the
+      // proper conversion.
+      const auto scalar_type = torch::stable::detail::_to<c10::ScalarType>(
           stableivalue_list->front(), extension_build_version);
       const auto value = stableivalue_list->back();
       // Delete the list, it was an owning pointer.
       TORCH_ERROR_CODE_CHECK(torch_delete_list(list_handle));
-      // And finally, combine the scalar type and the value to create the ivalue.
-      return create_ivalue_from_scalartype_and_stable_ivalue(scalar_type,value, extension_build_version);
-
+      // And finally, combine the scalar type and the value to create the
+      // ivalue.
+      return create_ivalue_from_scalartype_and_stable_ivalue(
+          scalar_type, value, extension_build_version);
     }
     default: {
       TORCH_CHECK(
@@ -738,4 +750,80 @@ AOTI_TORCH_EXPORT AOTITorchError torch_from_blob(
     }
     *ret_new_tensor = torch::aot_inductor::new_tensor_handle(std::move(tensor));
   });
+}
+
+static void default_error_handler(TorchExceptionHandle handle) {
+  InternalErrorInformation* error_info =
+      reinterpret_cast<InternalErrorInformation*>(handle);
+  if (error_info) {
+    if (error_info->borrowed_error) {
+      LOG(ERROR) << "Exception c10::Error" << std::endl;
+      LOG(ERROR) << "msg: " << error_info->borrowed_error->msg() << std::endl;
+      LOG(ERROR) << "what_without_backtrace: "
+                 << error_info->borrowed_error->what_without_backtrace()
+                 << std::endl;
+      LOG(ERROR) << "Exception c10::Error in aoti_torch: "
+                 << error_info->borrowed_error->what();
+    } else if (error_info->fallback_message) {
+      LOG(ERROR) << error_info->fallback_message;
+    }
+  }
+}
+
+// This could also be a thread_local instead of an atomic, that allows switching the error handler at thread-granularity
+// which has the benefit that if two different libraries with different threads use it they can each use their own
+// handler.
+std::atomic<TorchExceptionCallback> torch_c_shim_exception_callback{ &default_error_handler};
+// thread_local TorchExceptionCallback  torch_c_shim_exception_callback{ &default_error_handler};
+
+AOTI_TORCH_EXPORT TorchExceptionCallback aoti_torch_exception_get_callback() {
+  return torch_c_shim_exception_callback;
+}
+
+AOTI_TORCH_EXPORT void aoti_torch_exception_set_callback(
+    TorchExceptionCallback desired_callback) {
+  torch_c_shim_exception_callback = desired_callback;
+}
+
+AOTI_TORCH_EXPORT TorchExceptionCallback
+aoti_torch_exception_get_default_callback() {
+  return &default_error_handler;
+}
+
+static AOTITorchError aoti_torch_exception_worker(
+    TorchExceptionHandle handle,
+    const char** ret_msg,
+    bool with_backtrace) {
+  if (!handle || !ret_msg) {
+    return AOTI_TORCH_FAILURE;
+  }
+  InternalErrorInformation* error_info =
+      reinterpret_cast<InternalErrorInformation*>(handle);
+
+  if (error_info->borrowed_error) {
+    if (with_backtrace) {
+      *ret_msg = error_info->borrowed_error->what();
+    } else {
+      *ret_msg = error_info->borrowed_error->what_without_backtrace();
+    }
+  } else if (error_info->fallback_message) {
+    *ret_msg = error_info->fallback_message;
+  } else {
+    // This shouldn't happen, one field must always be populated.
+    *ret_msg = nullptr;
+    return AOTI_TORCH_FAILURE;
+  }
+
+  return AOTI_TORCH_SUCCESS;
+}
+
+AOTI_TORCH_EXPORT AOTITorchError aoti_torch_exception_get_what(
+    TorchExceptionHandle handle,
+    const char** ret_msg) {
+  return aoti_torch_exception_worker(handle, ret_msg, false);
+}
+AOTI_TORCH_EXPORT AOTITorchError aoti_torch_exception_get_what_with_backtrace(
+    TorchExceptionHandle handle,
+    const char** ret_msg) {
+  return aoti_torch_exception_worker(handle, ret_msg, true);
 }

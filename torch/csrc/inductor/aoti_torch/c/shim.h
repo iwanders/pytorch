@@ -587,6 +587,51 @@ AOTI_TORCH_EXPORT AOTITorchError aoti_torch_get_current_stream(
 AOTI_TORCH_EXPORT AOTITorchError
 aoti_torch_get_current_device_index(int32_t* ret_device_index);
 
+#if TORCH_FEATURE_VERSION >= TORCH_VERSION_2_12_0
+
+// Opaque type that holds the exception information.
+class TorchExceptionOpaque;
+using TorchExceptionHandle = TorchExceptionOpaque*;
+
+// Function signature of the exception callback.
+// This is invoked from the same thread as in which the exception occured.
+// This is called just prior to the return with FAILURE.
+// There is an active exception, but the exception raised by a 'rethrow'
+// statement is not considered part of the stable ABI. The TorchExceptionHandle
+// and any contents in it are only valid for the duration of the callback
+// itself, interact with the handle through the provided methods.
+using TorchExceptionCallback = void (*)(TorchExceptionHandle);
+
+// Retrieve the current exception callback.
+// Returns a nullptr if there currently is no exception handler set.
+AOTI_TORCH_EXPORT TorchExceptionCallback aoti_torch_exception_get_callback();
+
+// Set an exception callback, overwriting the previous one.
+AOTI_TORCH_EXPORT void aoti_torch_exception_set_callback(
+    TorchExceptionCallback desired_callback);
+
+// Retrieve the default callback, this is never a nullptr and by default prints
+// the backtrace to stderr.
+AOTI_TORCH_EXPORT TorchExceptionCallback
+aoti_torch_exception_get_default_callback();
+
+// Retrieve the message in the exception.
+// This returned (borrowed) pointer is only valid while the callback is active.
+// It is also invalidated when aoti_torch_exception_get_msg_with_backtrace is
+// called.
+AOTI_TORCH_EXPORT AOTITorchError aoti_torch_exception_get_what(
+    TorchExceptionHandle handle,
+    const char** ret_msg);
+
+// Retrieve the message and full backtrace.
+// This returned (borrowed) pointer is only valid while the callback is active.
+// It is also invalidated when aoti_torch_exception_get_msg is called.
+AOTI_TORCH_EXPORT AOTITorchError aoti_torch_exception_get_what_with_backtrace(
+    TorchExceptionHandle handle,
+    const char** ret_msg);
+
+#endif // TORCH_FEATURE_VERSION >= TORCH_VERSION_2_12_0
+
 #ifdef USE_CUDA
 
 struct CUDAGuardOpaque;
