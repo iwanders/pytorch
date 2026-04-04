@@ -14,6 +14,12 @@
 #define AOTI_TORCH_CONVERT_EXCEPTION_TO_ERROR_CODE(...)    \
   try {                                                    \
     __VA_ARGS__                                            \
+  } catch (const c10::Error& e) {                      \
+    LOG(ERROR) << "Exception c10::Error" <<std::endl; \
+    LOG(ERROR) << "msg: " << e.msg() <<std::endl; \
+    LOG(ERROR) << "what_without_backtrace: " << e.what_without_backtrace() <<std::endl; \
+    LOG(ERROR) << "Exception c10::Error in aoti_torch: " << e.what(); \
+    return AOTI_TORCH_FAILURE;                             \
   } catch (const std::exception& e) {                      \
     LOG(ERROR) << "Exception in aoti_torch: " << e.what(); \
     return AOTI_TORCH_FAILURE;                             \
