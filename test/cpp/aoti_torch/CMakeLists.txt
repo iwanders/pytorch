@@ -9,6 +9,7 @@ set(AOTI_TORCH_CHECK_TEST_ROOT ${TORCH_ROOT}/test/cpp/aoti_torch)
 set(AOTI_TORCH_CHECK_TEST_SRCS
   ${AOTI_TORCH_CHECK_TEST_ROOT}/main.cpp
   ${AOTI_TORCH_CHECK_TEST_ROOT}/test_stable_ivalue.cpp
+  ${AOTI_TORCH_CHECK_TEST_ROOT}/test_error_handling.cpp
 )
 
 add_executable(test_aoti_torch
