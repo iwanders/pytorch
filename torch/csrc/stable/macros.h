@@ -2,6 +2,7 @@
 
 #include <stdexcept>
 #include <string>
+#include <sstream>
 
 #if TORCH_FEATURE_VERSION >= TORCH_VERSION_2_10_0
 
@@ -26,5 +27,16 @@
 
 // Users of this macro are expected to include cuda_runtime.h
 #define STD_CUDA_KERNEL_LAUNCH_CHECK() STD_CUDA_CHECK(cudaGetLastError())
+
+
+// Just here for testing purposes
+#define TORCH_ERROR_CODE_CHECK_DETAILED(call)                                       \
+  if ((call) != TORCH_SUCCESS) {                                           \
+    std::stringstream ss;\
+    ss << call << " API call failed at " << __FILE__ << ", line " << __LINE__;\
+    ss << ", with: " << aoti_torch_exception_get_what();\
+    throw std::runtime_error(ss.str());\
+  }
+
 
 #endif

@@ -11,6 +11,7 @@
 #include <torch/csrc/stable/c/shim.h>
 #include <torch/csrc/stable/version.h>
 #include <torch/csrc/stable/scalar.h>
+#include <torch/csrc/stable/macros.h>
 #include <torch/headeronly/core/ScalarType.h>
 #include <torch/headeronly/macros/Macros.h>
 #include <torch/headeronly/util/HeaderOnlyArrayRef.h>
@@ -1054,7 +1055,7 @@ inline torch::stable::Tensor subtract(
     const torch::stable::Tensor& other,
     double alpha = 1.0) {
   AtenTensorHandle ret0;
-  TORCH_ERROR_CODE_CHECK(
+  TORCH_ERROR_CODE_CHECK_DETAILED(
       aoti_torch_aten_subtract_Tensor(self.get(), other.get(), alpha, &ret0));
   return torch::stable::Tensor(ret0);
 }

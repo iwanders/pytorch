@@ -587,6 +587,20 @@ AOTI_TORCH_EXPORT AOTITorchError aoti_torch_get_current_stream(
 AOTI_TORCH_EXPORT AOTITorchError
 aoti_torch_get_current_device_index(int32_t* ret_device_index);
 
+#if TORCH_FEATURE_VERSION >= TORCH_VERSION_2_12_0
+
+/// Retrieve a pointer to the string that holds the most recent exception's message.
+/// This pointer is a borrowed pointer and is invalidated when the next exception occurs.
+AOTI_TORCH_EXPORT const char* aoti_torch_exception_get_what();
+
+/// Retrieve a pointer to the string that holds the most recent exception's message and backtrace.
+/// This pointer is a borrowed pointer and is invalidated when the next exception occurs.
+/// This may be the same as the less detailed aoti_torch_exception_get_what() in case more information
+/// is not available.
+AOTI_TORCH_EXPORT const char* aoti_torch_exception_get_what_with_backtrace();
+
+#endif // TORCH_FEATURE_VERSION >= TORCH_VERSION_2_12_0
+
 #ifdef USE_CUDA
 
 struct CUDAGuardOpaque;

@@ -1,63 +1,57 @@
-// Checks the behaviour of:
-//  aoti_torch_new_stable_ivalue
-//  aoti_torch_delete_stable_ivalue
 
 #include <gtest/gtest.h>
-#include "torch/csrc/inductor/aoti_torch/c/macros.h"
 
 #include <torch/csrc/inductor/aoti_torch/c/shim.h>
-#include <limits>
 
-
-
-#include <torch/headeronly/core/ScalarType.h>
-#include <torch/headeronly/core/DeviceType.h>
-#include <torch/headeronly/core/MemoryFormat.h>
-#include <torch/headeronly/core/Layout.h>
 #include <torch/csrc/stable/ops.h>
-#include <torch/csrc/stable/tensor_struct.h>
 #include <torch/csrc/stable/tensor_inl.h>
+#include <torch/csrc/stable/tensor_struct.h>
+#include <torch/headeronly/core/DeviceType.h>
+#include <torch/headeronly/core/Layout.h>
+#include <torch/headeronly/core/MemoryFormat.h>
+#include <torch/headeronly/core/ScalarType.h>
 #include <iostream>
-
+#include <stdexcept>
+#include "gtest/gtest.h"
 
 using ScalarType = torch::headeronly::ScalarType;
-auto dtype = torch::headeronly::ScalarType::Float;
-auto device_type = torch::headeronly::DeviceType::CUDA;
-auto memory_format = torch::headeronly::MemoryFormat::Contiguous;
-auto layout = torch::headeronly::Layout::Strided;
-using Scalar = torch::stable::Scalar;
 
-
-inline torch::stable::Tensor addition(
-    const torch::stable::Tensor& self,
-    const torch::stable::Tensor& other,
-    double alpha = -1.0) {
-  const auto num_args = 3;
-  std::array<StableIValue, num_args> stack{
-      torch::stable::detail::from(self),
-      torch::stable::detail::from(other),
-      0
-    //  torch::stable::detail::from(Scalar(static_cast<int>(alpha)))
-  };
-  TORCH_ERROR_CODE_CHECK(torch_call_dispatcher(
-      "aten::add", "Tensor", stack.data(), TORCH_ABI_VERSION));
-  return torch::stable::detail::to<torch::stable::Tensor>(stack[0]);
+static void error_through_stable_header() {
+  torch::stable::Tensor a = torch::stable::empty({5}, ScalarType::UInt16);
+  torch::stable::fill_(a, 3.0);
+  torch::stable::Tensor b = torch::stable::empty({2}, ScalarType::Float);
+  torch::stable::fill_(b, 5.0);
+  torch::stable::Tensor c = torch::stable::subtract(a, b, 5);
 }
 
+static void error_directly() {
+  torch::stable::Tensor a = torch::stable::empty({5}, ScalarType::UInt16);
+  torch::stable::fill_(a, 3.0);
+  torch::stable::Tensor b = torch::stable::empty({2}, ScalarType::Float);
+  torch::stable::fill_(b, 5.0);
+  double alpha = 3;
+  AtenTensorHandle ret0;
+  aoti_torch_aten_subtract_Tensor(a.get(), b.get(), alpha, &ret0);
+}
 
 TEST(AotiTorchErrorHandling, TestError) {
 
 
-    torch::stable::Tensor a = torch::stable::empty( {1} , ScalarType::Float);
-    torch::stable::fill_(a,3.0);
+  std::cerr << "Stable header exception throws runtime_error" << std::endl;
+  EXPECT_THROW(error_through_stable_header(), std::runtime_error);
 
-    torch::stable::Tensor b = torch::stable::empty( {1}, ScalarType::Float);
-    torch::stable::fill_(b,5.0);
+  try {
+    error_through_stable_header();
+  } catch (const std::runtime_error& e){
+    EXPECT_EQ(std::string(e.what()), "1 API call failed at /workspace/pytorch/torch/csrc/stable/ops.h, line 1058, with: The size of tensor a (5) must match the size of tensor b (2) at non-singleton dimension 0");
 
-    //torch::stable::Tensor c = torch::stable::add(a, b, 5);
-    torch::stable::Tensor c = addition(a, b );
+  }
 
-    std::cout << "a: " << *reinterpret_cast<const float*>(a.const_data_ptr()) << std::endl;
-    std::cout << "b: " << *reinterpret_cast<const float*>(b.const_data_ptr()) << std::endl;
-    std::cout << "c: " << *reinterpret_cast<const float*>(c.const_data_ptr()) << std::endl;
+  std::cerr << "Error directly with default handler " << std::endl;
+  error_directly();
+
+  EXPECT_EQ(std::string(aoti_torch_exception_get_what()),"The size of tensor a (5) must match the size of tensor b (2) at non-singleton dimension 0");
+
+  std::cout << aoti_torch_exception_get_what() << std::endl;
+  std::cout << aoti_torch_exception_get_what_with_backtrace() << std::endl;
 }

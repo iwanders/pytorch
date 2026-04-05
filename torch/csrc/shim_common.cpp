@@ -16,6 +16,7 @@
 #endif // AT_PER_OPERATOR_HEADERS
 #include <ATen/Parallel.h>
 #include <torch/csrc/shim_conversion_utils.h>
+#include <torch/csrc/shim_common.h>
 #include <torch/csrc/stable/c/shim.h>
 
 AOTITorchError torch_new_list_reserve_size(size_t size, StableListHandle* ret) {
@@ -738,4 +739,15 @@ AOTI_TORCH_EXPORT AOTITorchError torch_from_blob(
     }
     *ret_new_tensor = torch::aot_inductor::new_tensor_handle(std::move(tensor));
   });
+}
+
+thread_local std::string aoti_torch_exception_what_with_backtrace;
+thread_local std::string aoti_torch_exception_what;
+
+const char* aoti_torch_exception_get_what_with_backtrace(){
+  return aoti_torch_exception_what_with_backtrace.c_str();
+}
+
+const char* aoti_torch_exception_get_what(){
+  return aoti_torch_exception_what.c_str();
 }

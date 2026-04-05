@@ -9,22 +9,25 @@
 #include <c10/util/Logging.h>
 #include <c10/util/OptionalArrayRef.h>
 #include <torch/csrc/inductor/aoti_torch/c/shim.h>
+#include <torch/csrc/shim_common.h>
 #include <optional>
 
 #define AOTI_TORCH_CONVERT_EXCEPTION_TO_ERROR_CODE(...)    \
   try {                                                    \
     __VA_ARGS__                                            \
   } catch (const c10::Error& e) {                      \
-    LOG(ERROR) << "Exception c10::Error" <<std::endl; \
-    LOG(ERROR) << "msg: " << e.msg() <<std::endl; \
-    LOG(ERROR) << "what_without_backtrace: " << e.what_without_backtrace() <<std::endl; \
-    LOG(ERROR) << "Exception c10::Error in aoti_torch: " << e.what(); \
+    aoti_torch_exception_what_with_backtrace = e.what();\
+    aoti_torch_exception_what = e.what_without_backtrace();\
     return AOTI_TORCH_FAILURE;                             \
   } catch (const std::exception& e) {                      \
-    LOG(ERROR) << "Exception in aoti_torch: " << e.what(); \
+    const std::string exception_info = std::string("Exception in aoti_torch: ") + e.what(); \
+    aoti_torch_exception_what_with_backtrace = exception_info;\
+    aoti_torch_exception_what = exception_info;\
     return AOTI_TORCH_FAILURE;                             \
   } catch (...) {                                          \
-    LOG(ERROR) << "Exception in aoti_torch: UNKNOWN";      \
+    const std::string exception_info =  "Exception in aoti_torch: UNKNOWN";      \
+    aoti_torch_exception_what_with_backtrace = exception_info;\
+    aoti_torch_exception_what = exception_info;\
     return AOTI_TORCH_FAILURE;                             \
   }                                                        \
   return AOTI_TORCH_SUCCESS;
