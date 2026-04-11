@@ -751,4 +751,13 @@ AOTI_TORCH_EXPORT AOTITorchError torch_library_set_python_module(
     reinterpret_cast<torch::Library*>(self)->set_python_module(
         pymodule, context);
   });
+thread_local std::string torch_exception_what;
+thread_local std::string torch_exception_what_with_backtrace;
+
+const char* torch_exception_get_what() {
+  return torch_exception_what.c_str();
+}
+
+const char* torch_exception_get_what_with_backtrace() {
+  return torch_exception_what_with_backtrace.c_str();
 }
