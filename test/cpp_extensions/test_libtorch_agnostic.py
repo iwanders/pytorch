@@ -18,12 +18,12 @@ from torch.testing._internal.common_device_type import (
 )
 from torch.testing._internal.common_dtype import all_types_and
 from torch.testing._internal.common_utils import (
+    TestCase,
     install_cpp_extension,
     parametrize,
     run_tests,
     skipIfTorchDynamo,
     skipIfWindows,
-    TestCase,
     xfailIfTorchDynamo,
 )
 
@@ -1992,10 +1992,11 @@ except RuntimeError as e:
         t = torch.randn(3, device=device)
         out = torch.ops.libtorch_agn_2_13.identity_with_fake_module.default(t)
         self.assertEqual(out, t)
+
     @skipIfTorchVersionLessThan(2, 12)
     def test_my_exception_what(self, device):
         """Test exception what() handling."""
-        import libtorch_agn_2_12 as libtorch_agnostic
+        import libtorch_agn_2_13 as libtorch_agnostic
 
         # Verify that the default is to initialise with printing the backtrace
         self.assertTrue(
