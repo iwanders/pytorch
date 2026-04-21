@@ -751,11 +751,14 @@ AOTI_TORCH_EXPORT AOTITorchError torch_library_set_python_module(
     reinterpret_cast<torch::Library*>(self)->set_python_module(
         pymodule, context);
   });
-thread_local std::string torch_exception_what;
-thread_local std::string torch_exception_what_without_backtrace;
+
+
+AOTI_TORCH_EXPORT thread_local std::string torch_exception_what;
+AOTI_TORCH_EXPORT thread_local std::string
+    torch_exception_what_without_backtrace;
 
 // Default to printing the exception since that was the historical behaviour.
-thread_local bool torch_exception_printing_enabled = true;
+AOTI_TORCH_EXPORT thread_local bool torch_exception_printing_enabled = true;
 
 AOTI_TORCH_EXPORT const char* torch_exception_get_what() {
   return torch_exception_what.c_str();
