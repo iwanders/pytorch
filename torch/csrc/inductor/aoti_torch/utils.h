@@ -16,8 +16,8 @@
   try {                                                   \
     __VA_ARGS__                                           \
   } catch (const c10::Error& e) {                         \
-    torch_exception_state_store_what(e.what());           \
-    torch_exception_state_store_what_without_backtrace(   \
+    torch_exception_state_set_what(e.what());             \
+    torch_exception_state_set_what_without_backtrace(     \
         e.what_without_backtrace());                      \
     if (torch_exception_state_get_exception_printing()) { \
       LOG(ERROR) << "Exception in aoti_torch: "           \
@@ -25,8 +25,8 @@
     }                                                     \
     return AOTI_TORCH_FAILURE;                            \
   } catch (const std::exception& e) {                     \
-    torch_exception_state_store_what(e.what());           \
-    torch_exception_state_store_what_without_backtrace(   \
+    torch_exception_state_set_what(e.what());             \
+    torch_exception_state_set_what_without_backtrace(     \
         torch_exception_state_get_what());                \
     if (torch_exception_state_get_exception_printing()) { \
       LOG(ERROR) << "Exception in aoti_torch: "           \
@@ -34,8 +34,8 @@
     }                                                     \
     return AOTI_TORCH_FAILURE;                            \
   } catch (...) {                                         \
-    torch_exception_state_store_what("UNKNOWN");          \
-    torch_exception_state_store_what_without_backtrace(   \
+    torch_exception_state_set_what("UNKNOWN");            \
+    torch_exception_state_set_what_without_backtrace(     \
         torch_exception_state_get_what());                \
     if (torch_exception_state_get_exception_printing()) { \
       LOG(ERROR) << "Exception in aoti_torch: "           \
