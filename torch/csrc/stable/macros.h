@@ -63,5 +63,13 @@ HIDDEN_NAMESPACE_END(torch, stable, detail)
   }
 
 #else
-#define STABLE_TORCH_ERROR_CODE_CHECK(call) TORCH_ERROR_CODE_CHECK(call)
+#define STABLE_TORCH_ERROR_CODE_CHECK(call)                                         \
+  if ((call) != TORCH_SUCCESS) {                                                    \
+    if (aoti_torch_abi_version() >= TORCH_VERSION_2_13_0){                          \
+      throw std::runtime_error(std::string("booo: ") + torch_exception_get_what()); \
+    } else {                                                                        \
+      throw std::runtime_error("boo, something bad");                               \
+    }                                                                               \
+  }
+
 #endif // TORCH_FEATURE_VERSION >= TORCH_VERSION_2_13_0
