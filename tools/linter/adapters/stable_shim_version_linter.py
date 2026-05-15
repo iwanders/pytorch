@@ -168,8 +168,9 @@ def check_file(filename: str) -> list[LintMessage]:
 
         # Let the tracker process preprocessor directives and comments
         is_directive_or_comment = tracker.process_line(line)
+        identifiers_used = tracker.identifiers_used()
 
-        if is_directive_or_comment:
+        if is_directive_or_comment and not identifiers_used:
             continue
 
         # Track extern "C" blocks

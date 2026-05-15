@@ -374,7 +374,10 @@ class PreprocessorTracker:
 
         # This is a line with code, so process it with the matcher.
         self._identifier_accumulator.set_scope_version(self.version_of_block)
-        self._identifier_accumulator.process_line(line)
+        is_in_multi_line_parser = self._identifier_accumulator.process_line(line)
+
+        if is_in_multi_line_parser:
+            return True
 
         # Not a preprocessor directive or comment
         return False
@@ -382,6 +385,10 @@ class PreprocessorTracker:
     def identifiers_used(self) -> list[IdentifierUse]:
         found = self._identifier_accumulator.identifiers_used()
         return found if found is not None else []
+
+    def get_version_of_block(self) -> tuple[int, int] | None:
+        """Get the current version requirement, or None if not in a version block."""
+        return self.version_of_block
 
 
 def get_current_version() -> tuple[int, int, int]:
